@@ -100,7 +100,7 @@ C Local  spectrometer varibales
 	real*8 dxdz_s,dydz_s,dpp_s
 
 c carbon cross section
-	integer doing_carbon /2/
+	integer doing_carbon /3/
 	integer doing_hyd /0/
 	real*8 mass_tar,theta_pol,eprime,e_ex
         real*8 ebeam ! MeV
@@ -415,14 +415,14 @@ C Strip off header
 ! Read in flag to keep all events - success or not
 	read (chanin,1001) str_line
 	write(*,*),str_line(1:last_char(str_line))
-        write(*,*) " str_line1 = " ,str_line
+!        write(*,*) " str_line1 = " ,str_line
 	if (.not.rd_int(str_line,tmp_int)) 
      > stop 'ERROR: store_all in setup file!'
 	if (tmp_int.eq.1) store_all = .true.
 
 	read (chanin, 1001,end=999) str_line
 	write(*,*),str_line(1:last_char(str_line))
-        write(*,*) " str_line = " ,str_line
+!        write(*,*) " str_line = " ,str_line
 	iss = rd_real(str_line,ebeam)
 	if(.not.iss) stop 'ERROR (ebeam) in setup!'
 
@@ -540,34 +540,34 @@ C dxdz and dydz in HMS TRANSPORT coordinates.
 
 c If doing carbon elastics and quasielastics
 	    event_type=0.  
-	  if (doing_hyd .eq. 1) then
-	    mass_tar = .93827/.9315
-            cur=20. ! microAmps
-	    thick=.0708*gen_lim(6)  ! g/cm2
-	    domega = (gen_lim_up(3)-gen_lim_down(3))*(gen_lim_up(2)-gen_lim_down(2))/1000./1000.
-	    denergy = ep_max-ep_min
-	    lumin=thick*1./1.*N_A/Q_E*1e+10 !per fm2 for 1C 
-            if (ispec .eq. 2) theta_pol = acos( (cos_ts - dydz*sin_ts)
-     +                        / sqrt( 1. + dxdz**2 + dydz**2 ) )
-            if (ispec .eq. 1) theta_pol = acos( (cos_ts + dydz*sin_ts)
-     +                        / sqrt( 1. + dxdz**2 + dydz**2 ) )
-	    thrown_wt = 1.
-	    event_type=3.  
-	     eprime= p_spec*(1+0.01*dpp)
-	     Q2_vertex= 4.0*ebeam*eprime*sin(theta_pol/2)**2
-             W_vertex= 2.*938.27*(ebeam-eprime) + (938.27)**2 - Q2_vertex
-c             write(*,*) W_vertex,ebeam-eprime,ebeam,eprime,dpp
-              if ( W_vertex .gt. 0)  W_vertex = sqrt(W_vertex)
-c              write(*,*) eprime,ebeam,Q2_vertex,W_vertex
-	     if (  W_vertex .le. 1.080 ) goto 500
-	     if (  ebeam-eprime .le. 0 ) goto 500
-            endif
+!	  if (doing_hyd .eq. 1) then
+!	    mass_tar = .93827/.9315
+!            cur=5. ! microAmps
+!	    thick=.0708*gen_lim(6)  ! g/cm2
+!	    domega = (gen_lim_up(3)-gen_lim_down(3))*(gen_lim_up(2)-gen_lim_down(2))/1000./1000.
+!	    denergy = ep_max-ep_min
+!	    lumin=thick*1./1.*N_A/Q_E*1e+10 !per fm2 for 1C 
+!            if (ispec .eq. 2) theta_pol = acos( (cos_ts - dydz*sin_ts)
+!     +                        / sqrt( 1. + dxdz**2 + dydz**2 ) )
+!            if (ispec .eq. 1) theta_pol = acos( (cos_ts + dydz*sin_ts)
+!     +                        / sqrt( 1. + dxdz**2 + dydz**2 ) )
+!	    thrown_wt = 1.
+!	    event_type=3.  
+!	     eprime= p_spec*(1+0.01*dpp)
+!	     Q2_vertex= 4.0*ebeam*eprime*sin(theta_pol/2)**2
+!             W_vertex= 2.*938.27*(ebeam-eprime) + (938.27)**2 - Q2_vertex
+!c             write(*,*) W_vertex,ebeam-eprime,ebeam,eprime,dpp
+!              if ( W_vertex .gt. 0)  W_vertex = sqrt(W_vertex)
+!c              write(*,*) eprime,ebeam,Q2_vertex,W_vertex
+!	     if (  W_vertex .le. 1.080 ) goto 500
+!	     if (  ebeam-eprime .le. 0 ) goto 500
+!          endif
 	  if (doing_carbon .ge. 1) then
 	    mass_tar = 12.*931.5
-            cur=20. ! microAmps
+            cur=5. ! microAmps
 	    thick=car_density*gen_lim(6)  ! g/cm2
 c            thick=0.1749
-            thick=0.044 ! g/cm2 multifoil targets
+            thick=0.044*3 ! g/cm2 multifoil targets (three foils)
             ep_min = p_spec*(1.+0.01*gen_lim_down(1))
 	    ep_max = p_spec*(1.+0.01*gen_lim_up(1))
 	    domega = (gen_lim_up(3)-gen_lim_down(3))*(gen_lim_up(2)-gen_lim_down(2))/1000./1000.
@@ -578,7 +578,7 @@ c            thick=0.1749
             if (ispec .eq. 1) theta_pol = acos( (cos_ts + dydz*sin_ts)
      +                        / sqrt( 1. + dxdz**2 + dydz**2 ) )
 	    thrown_wt = 1.
-	    if (doing_carbon .eq. 2) then
+	    if(doing_carbon .eq. 2) then
 	     thrown_wt = 2.
               rnum=grnd()
 	      if (rnum .le. 0.5) then ! elastic carbon scattering
@@ -594,7 +594,7 @@ c            thick=0.1749
 	      dpp = (eprime-p_spec)/p_spec*100.
 	      event_type=2. 
  	      endif
-              if (doing_carbon .eq. 3) then ! inelastics
+            else if (doing_carbon .eq. 3) then ! inelastics
 	      event_type=3.  
 	      eprime= p_spec*(1+0.01*dpp)
 	      Q2_vertex= 4.0*ebeam*eprime*sin(theta_pol/2)**2
@@ -603,17 +603,16 @@ c            thick=0.1749
 	      if (  W_vertex .le. 0 ) goto 500
 	      if (  ebeam-eprime .le. 0 ) goto 500
 	     endif
-          endif
-	    if (doing_carbon .eq. 1) then
-	     event_type=3.  
-	     eprime= p_spec*(1+0.01*dpp)
-	     Q2_vertex= 4.0*ebeam*eprime*sin(theta_pol/2)**2
-             W_vertex= 2.*938.27*(ebeam-eprime) + (938.27)**2 - Q2_vertex
-              if ( W_vertex .gt. 0)  W_vertex = sqrt(W_vertex)
-c              write(*,*) eprime,ebeam,Q2_vertex/1000./1000.,W_vertex/1000.
-	     if (  W_vertex .le. 0 ) goto 500
-	     if (  ebeam-eprime .le. 0 ) goto 500
-            endif	    
+	    !else if (doing_carbon .eq. 1) then
+	    ! event_type=3.  
+	    ! eprime= p_spec*(1+0.01*dpp)
+	    ! Q2_vertex= 4.0*ebeam*eprime*sin(theta_pol/2)**2
+            ! W_vertex= 2.*938.27*(ebeam-eprime) + (938.27)**2 - Q2_vertex
+            !  if ( W_vertex .gt. 0)  W_vertex = sqrt(W_vertex)
+c           !   write(*,*) eprime,ebeam,Q2_vertex/1000./1000.,W_vertex/1000.
+	    ! if (  W_vertex .le. 0 ) goto 500
+	    ! if (  ebeam-eprime .le. 0 ) goto 500
+            !endif	    
 	  endif
 c
 
@@ -768,7 +767,7 @@ c            if (ok_spec) spec(58) =1.
 	    dph_recon = dxdz_s*1000.			!mr
 	    ztar_recon = + y_s / sin_ts 
             ytar_recon = y_s
-c
+c               
 	    if (event_type .eq. 1) then
                 theta_recon = acos( (cos_ts + dydz_s*sin_ts)
      +                        / sqrt( 1. + dxdz_s**2 + dydz_s**2 ) )
@@ -788,7 +787,6 @@ c                 write(*,*) " wfac = ", wfac, sig_elastic,thrown_wt,domega
 	       eprime_calc=  mass_tar*ebeam/(ebeam*(1-cos(theta_recon))+mass_tar) + 4.4
 	       call calc_first_elastic_excited_sig(theta_pol*180./3.14159,sig_elastic)
 	       normfac=thrown_wt*sig_elastic*lumin*domega/n_trials
-	         
 	         wfac=sig_elastic*thrown_wt*domega/n_trials
 					 xsecr = sig_elastic
 					 xsecv = sig_elastic
@@ -800,15 +798,15 @@ c               eprime = 4100.
 c 	      Q2_vertex= 4.0*ebeam*eprime*sin(theta_pol/2)**2
 c              W_vertex= sqrt(2.*938.27*(ebeam-eprime) + (938.27)**2 - Q2_vertex)
               
-              write(*,*) theta_pol,ebeam-eprime,Q2_vertex/1000./1000.,W_vertex/1000.
 	      call calc_inelastic_sig(theta_pol,ebeam-eprime,Q2_vertex,W_vertex,sig_inelastic)
-                 hbarcsq=0.389379292d0 ! GeV2*mb
-                 sig_mott = alpha**2 / (Q2_vertex/1.d6) / tan(theta_pol/2.0d0)**2 * eprime/ebeam
-                 sig_mott = sig_mott * hbarcsq * 0.1  !!xsec in fm2 = 10mb
+!                 hbarcsq=0.389379292d0 ! GeV2*mb
+!                 sig_mott = alpha**2 / (Q2_vertex/1.d6) / tan(theta_pol/2.0d0)**2 * eprime/ebeam
+!                 sig_mott = sig_mott * hbarcsq * 0.1  !!xsec in fm2 = 10mb
 		 sig_inelastic = sig_mott*sig_inelastic !! sig_inelastic is /MeV/str/nuc
 c                 write(*,*) " xn in fm2/MeV " , sig_inelastic
 	         normfac=thrown_wt*sig_inelastic*lumin*domega*denergy/n_trials
 	         wfac=thrown_wt*domega*denergy/n_trials
+                 write (*, *) theta_pol,ebeam-eprime,Q2_vertex,W_vertex,sig_inelastic
 					 xsecr = sig_inelastic
 					 xsecv = sig_inelastic
 c                 write(*,*) "wfac = ",wfac,sig_inelastic
@@ -1158,7 +1156,7 @@ C =============================== Format Statements ============================
 	save
 c       
       if ( first) then
-         write(*,*) ' opening file'
+         write(*,*) ' opening gs elastics file'
          nfile=0
          open(unit=23,status='old',file='../data_michael/C12table.txt')
          read(23,*) ! skip header line
@@ -1190,12 +1188,12 @@ c
 	return
 	end
 c
-	subroutine calc_first_elastic_excited_sig(theta_pol,sig)
+	subroutine calc_first_elastic_excited_sig(theta_pol,sig_elastic)
 	implicit none
 	real*8 theta_pol   ! 
-	real*8 sig  ! fm2/sr
+	real*8 sig_elastic  ! fm2/sr
 	integer nang
-	parameter (nang=200)
+	parameter (nang=201)
 	real*8 sigma(nang),th_file(nang),frac
 	integer nfile
 	character*132 str_line
@@ -1205,37 +1203,35 @@ c
 	real*8 q,q_eff,sig_mott,ratio,dsigde,dsigdth
 	save
 c       
-	if ( first) then
-	   write(*,*) ' opening file'
-	   nfile=0
-	   open(unit=23,status='old',file='../data_michael/C12_1st_ExcitedState_table.dat')
-		 read(23,*) ! skip header line
-              do while (nfile .le. nang)
-	      nfile=nfile+1
-				sigma(nfile) = sigma(nfile) * 0.1d0 ! unit conversion mb -> fm2
-	      read(23,'(f8.5,g15.5)',end=100)  th_file(nfile),sigma(nfile)
-	      write(25,*) th_file(nfile),sigma(nfile)
-	      enddo
-	endif
+      if ( first) then
+         write(*,*) ' opening 1st excited grid file'
+         nfile=0
+         open(unit=23,status='old',file='../data_michael/C12_1st_ExcitedState_table.dat')
+         read(23,*) ! skip header line
+         do
+            read(23,*,end=100) th_file(nfile+1),sigma(nfile+1)
+            nfile=nfile+1
+						sigma(nfile) = sigma(nfile) * 0.1d0 ! unit conversion mb -> fm2
+            if (nfile .gt. nang) STOP
+            write(*,'(1x,f8.4,1x,e13.5)')
+     >         th_file(nfile),sigma(nfile)
+         enddo
+         close(unit=23)
+      endif
 c
  100	nang_test=1
-        if (first) write(*,*) nfile-1,th_file(1),th_file(nfile-1)
 	first=.false.
 	found = .false.
-	sig=0.
-        if ( theta_pol .ge. th_file(1)    
-     +      .and. theta_pol .le. th_file(nfile-1) ) then
-	do while (nang_test .lt. nfile-1 .and. .not. found)
+	sig_elastic=-100.
+	do while (nang_test .lt. nfile .and. .not. found)
 	      frac= (theta_pol-th_file(nang_test))/(th_file(nang_test+1)-th_file(nang_test))
 	   if (abs(frac) .lt. 1) then
-	      sig=sigma(nang_test)+(sigma(nang_test+1)-sigma(nang_test))*frac
+	      sig_elastic=sigma(nang_test)+(sigma(nang_test+1)-sigma(nang_test))*frac
 	      found = .true.
 	      endif
 	   nang_test = nang_test+ 1
 	enddo
-	endif
 c
-c	write(*,*) theta_pol,sig
 	return
 	end
 
