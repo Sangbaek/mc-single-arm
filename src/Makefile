@@ -11,7 +11,7 @@ SHARE	  = shared/
 CH	= cern/
 
 my_objs = hms_hbook_init.o shms_hbook_init.o \
-          target_cans.o xsec_model.o get_physics.o \
+          target_cans.o xsec_model.o get_physics.o F1F221.o \
           $(H)mc_hms.o $(H)mc_hms_hut.o $(H)mc_hms_recon.o \
           $(SH)mc_shms.o $(SH)mc_shms_hut.o $(SH)mc_shms_recon.o \
 	  $(SHARE)project.o $(SHARE)transp.o $(SHARE)rotate_haxis.o \
@@ -19,6 +19,8 @@ my_objs = hms_hbook_init.o shms_hbook_init.o \
           $(SHARE)musc_ext.o $(SHARE)stringlib.o mt19937.o gauss1.o \
 	  $(CH)lfit.o $(CH)ranlux.o $(CH)fint.o $(CH)kerset.o $(CH)abend.o \
           loren.o
+
+my_deps = $(my_objs:.o=.d)
 
 MYOS := $(subst -,,$(shell uname))
 #mess $(MYOS)
@@ -144,11 +146,20 @@ endif
 %.o: %.f
 	$(F77) $(FFLAGS) -c $< -o $@
 
-all: mc_single_arm 
+all: mc_single_arm mc_single_arm_temp
 
 mc_single_arm: $(my_objs) Makefile mc_single_arm.o
 	$(F77) -o $@ $(FFLAGS) mc_single_arm.o $(my_objs) $(OTHERLIBS)
 
+CERNLIBS_temp = -Wl,-static -lgeant$(GEANTVER) -lpawlib -lgraflib -lgrafX11 -lpacklib -lkernlib -lmathlib -Wl,-dy
+
+#
+CERN_ROOT_temp=/cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/cernlib/2023
+
+OTHERLIBS_temp = -L$(CERN_ROOT_temp)/lib $(CERNLIBS_temp) -L/usr/lib64 
+
+mc_single_arm_temp: $(my_objs) Makefile mc_single_arm_temp.o
+	$(F77) -o $@ $(FFLAGS) mc_single_arm_temp.o $(my_objs) $(OTHERLIBS_temp)
 clean:
 	rm -f *.o $(H)*.o $(SH)*.o $(SHARE)*.o $(CH)*.o mc_single_arm
 
