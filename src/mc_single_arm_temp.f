@@ -16,11 +16,11 @@ C-______________________________________________________________________________
 	include 'hbook.inc'
 
 c Vector (real*4) for hut ntuples - needs to match dimension of variables
-	real*4		shms_hut(25)
+	real*8		shms_hut(32)
 	real*4		hrsl_hut(9)
 	real*4          shms_spec(58)
 
-	real*4          hms_hut(25)
+	real*8          hms_hut(31)
 c
 	real*8 xwedge,ywedge,zwedge
 	common /wedge_info/ xwedge,ywedge,zwedge
@@ -105,7 +105,7 @@ c carbon cross section
 	real*8 mass_tar,theta_pol,eprime,e_ex
         real*8 ebeam ! MeV
         real*8 car_density /1.7/ ! g/cm3
-	REAL*8 q2_vertex,W_vertex
+	REAL*8 q2_vertex,W_vertex, xb_recon, xb_vert
 	real event_type
 	real*8 Q_E, N_A,lumin,ep_min,ep_max,domega,denergy
 	real*8 sig_elastic,sig_inelastic
@@ -117,6 +117,7 @@ c carbon cross section
 	real*8 hbarcsq,sig_mott
         real*8 thrown_wt
         real*8 rnum
+	real*8 xsecr,xsecv
 C Function definitions.
 
 	integer*4	last_char
@@ -593,7 +594,7 @@ c            thick=0.1749
 	      dpp = (eprime-p_spec)/p_spec*100.
 	      event_type=2. 
  	      endif
-              if (doing_carbon .eq. 3) then
+              if (doing_carbon .eq. 3) then ! inelastics
 	      event_type=3.  
 	      eprime= p_spec*(1+0.01*dpp)
 	      Q2_vertex= 4.0*ebeam*eprime*sin(theta_pol/2)**2
@@ -746,7 +747,9 @@ c
 	     if (spec_ntuple) then
 		shms_spec(58) = shmsSTOP_id
 c            if (ok_spec) spec(58) =1.
-		call hfn(1412,shms_spec)
+		do ivar=1,SpecNtupleSize
+		   write(SpecNtupleIO) shms_spec(ivar)
+		enddo
 	     endif
 	  elseif(ispec.eq.1) then
 	     call mc_hms(p_spec, th_spec, dpp_s, x_s, y_s, z_s, 
@@ -774,6 +777,8 @@ c
 	       call calc_elastic_sig(theta_pol*180./3.14159,sig_elastic)
 	       normfac=thrown_wt*sig_elastic*lumin*domega/n_trials
 	         wfac=sig_elastic*thrown_wt*domega/n_trials
+					 xsecr = sig_elastic
+					 xsecv = sig_elastic
 c                 write(*,*) " wfac = ", wfac, sig_elastic,thrown_wt,domega
 	    endif
 	    if (event_type .eq. 2) then
@@ -781,10 +786,12 @@ c                 write(*,*) " wfac = ", wfac, sig_elastic,thrown_wt,domega
      +                        / sqrt( 1. + dxdz_s**2 + dydz_s**2 ) )
 	        eprime_recon= p_spec*(1+0.01*dpp_s)
 	       eprime_calc=  mass_tar*ebeam/(ebeam*(1-cos(theta_recon))+mass_tar) + 4.4
-	       call calc_elastic_excited_sig(theta_pol*180./3.14159,sig_elastic)
+	       call calc_first_elastic_excited_sig(theta_pol*180./3.14159,sig_elastic)
 	       normfac=thrown_wt*sig_elastic*lumin*domega/n_trials
 	         
 	         wfac=sig_elastic*thrown_wt*domega/n_trials
+					 xsecr = sig_elastic
+					 xsecv = sig_elastic
 	    endif
 	    if (event_type .eq. 3) then
 c               theta_pol= 24./57.3
@@ -793,8 +800,8 @@ c               eprime = 4100.
 c 	      Q2_vertex= 4.0*ebeam*eprime*sin(theta_pol/2)**2
 c              W_vertex= sqrt(2.*938.27*(ebeam-eprime) + (938.27)**2 - Q2_vertex)
               
-c              write(*,*) theta_pol,ebeam-eprime,Q2_vertex/1000./1000.,W_vertex/1000.
-c	      call calc_inelastic_sig(theta_pol,ebeam-eprime,Q2_vertex,W_vertex,sig_inelastic)
+              write(*,*) theta_pol,ebeam-eprime,Q2_vertex/1000./1000.,W_vertex/1000.
+	      call calc_inelastic_sig(theta_pol,ebeam-eprime,Q2_vertex,W_vertex,sig_inelastic)
                  hbarcsq=0.389379292d0 ! GeV2*mb
                  sig_mott = alpha**2 / (Q2_vertex/1.d6) / tan(theta_pol/2.0d0)**2 * eprime/ebeam
                  sig_mott = sig_mott * hbarcsq * 0.1  !!xsec in fm2 = 10mb
@@ -802,6 +809,8 @@ c	      call calc_inelastic_sig(theta_pol,ebeam-eprime,Q2_vertex,W_vertex,sig_in
 c                 write(*,*) " xn in fm2/MeV " , sig_inelastic
 	         normfac=thrown_wt*sig_inelastic*lumin*domega*denergy/n_trials
 	         wfac=thrown_wt*domega*denergy/n_trials
+					 xsecr = sig_inelastic
+					 xsecv = sig_inelastic
 c                 write(*,*) "wfac = ",wfac,sig_inelastic
 	    endif
 
@@ -816,7 +825,6 @@ C Compute sums for calculating reconstruction variances.
 	    dph_var(2) = dph_var(2) + (dph_recon - dph_init)**2
 	    ztg_var(2) = ztg_var(2) + (ztar_recon - ztar_init)**2
 	 endif			!Incremented the arrays
-
 
 C Output NTUPLE entry.
 C This is ugly, but want the option to have different outputs
@@ -839,25 +847,30 @@ C for spectrometer ntuples
 	       shms_hut(14)= dph_recon/1000.
 	       shms_hut(15)= xtar_init
 	       shms_hut(16)= fry
-	       shms_hut(17)= xs_num
-	       shms_hut(18)= ys_num
-	       shms_hut(19)= xc_sieve
-	       shms_hut(20)= W_vertex/1000.
-	       shms_hut(21)= Q2_vertex/1000./1000.
 	       if (use_front_sieve) then
 		  shms_hut(17)= xsfr_num
 		  shms_hut(18)= ysfr_num
 		  shms_hut(19)= xc_frsieve
 		  shms_hut(20)= yc_frsieve
 	       endif
-	       shms_hut(17)= wfac
-	       shms_hut(18)= event_type
-	       if (event_type .le. 2) shms_hut(22)= sig_elastic 
-	       if (event_type .eq. 3) shms_hut(22)= sig_inelastic 
-               shms_hut(23)=xwedge
-               shms_hut(24)=ywedge
-               shms_hut(25)=zwedge
-	      !  call hfn(1411,shms_hut)
+	       if (use_sieve) then
+		  shms_hut(17)= xs_num
+		  shms_hut(18)= ys_num
+		  shms_hut(19)= xc_sieve
+		  shms_hut(20)= yc_sieve
+	       endif
+	       shms_hut(21)= shmsSTOP_id
+	       shms_hut(22)= x
+	       shms_hut(23)= y
+	       shms_hut(24)= xb_vert
+	       shms_hut(25)= xb_recon
+	       shms_hut(26)= q2_vertex
+	       shms_hut(27)= w_vertex
+	       shms_hut(28)= eprime_recon
+	       shms_hut(29)= theta_recon
+	       shms_hut(30)= xsecv
+	       shms_hut(31)= xsecr
+	       shms_hut(32)= wfac
 	       do ivar=1,NtupleSize
 		  write(NtupleIO) shms_hut(ivar)
 	       enddo
@@ -866,48 +879,39 @@ C for spectrometer ntuples
 
 	 if(ispec.eq.1) then
 	    if (store_all.OR.(hut_ntuple.AND.ok_spec)) then
-	       hms_hut(5) = ytar_init
-	       hms_hut(6) = dpp_init
-	       hms_hut(7) = dth_init/1000.
-	       hms_hut(8) = dph_init/1000.
-	       hms_hut(14)= ztar_init
-	       hms_hut(15)= hSTOP_id
-               if (ok_spec) then 
 	       hms_hut(1) = x_fp
 	       hms_hut(2) = y_fp
 	       hms_hut(3) = dx_fp
 	       hms_hut(4) = dy_fp
-	       hms_hut(9) = ytar_recon
-	       hms_hut(10)= dpp_recon
-	       hms_hut(11)= dth_recon/1000.
+	       hms_hut(5) = xtar_init
+	       hms_hut(6) = ytar_init
+	       hms_hut(7) = dph_init/1000.
+	       hms_hut(8) = dth_init/1000.
+	       hms_hut(9) = ztar_init
+	       hms_hut(10)= dpp_init
+	       hms_hut(11)= ytar_recon
 	       hms_hut(12)= dph_recon/1000.
-	       hms_hut(13) = fry
-	       hms_hut(16)= wfac 
-	       hms_hut(17)= event_type 
-	       if (event_type .le. 2) hms_hut(18)= sig_elastic 
-	       if (event_type .eq. 3) hms_hut(18)= sig_inelastic
-               hms_hut(19)=xs_num
-               hms_hut(20)=ys_num
-               hms_hut(21)= xc_sieve
-               hms_hut(22)= yc_sieve
-              else
-	       hms_hut(1) = -10000.
-	       hms_hut(2) = -10000.
-	       hms_hut(3) = -10000.
-	       hms_hut(4) = -10000.
-	       hms_hut(9) = -10000.
-	       hms_hut(10)= -10000.
-	       hms_hut(11)= -10000.
-	       hms_hut(12)=-10000.
-	       hms_hut(13) = -10000.
-	       hms_hut(16) = -10000.
-	       hms_hut(17) = -10000.
-	       hms_hut(18) = -10000.
-	       hms_hut(19) = -10000.
-	       hms_hut(20) = -10000.
-	       hms_hut(21) = -10000.
-	       hms_hut(22) = -10000.
-                 endif
+	       hms_hut(13)= dth_recon/1000.
+	       hms_hut(14)= ztar_recon
+	       hms_hut(15)= dpp_recon
+	       hms_hut(16)= fry
+	       if (use_sieve) then
+		  hms_hut(17)= xs_num
+		  hms_hut(18)= ys_num
+		  hms_hut(19)= xc_sieve
+		  hms_hut(20)= yc_sieve
+	       endif
+               hms_hut(21)=hSTOP_id
+	       hms_hut(22)= x
+	       hms_hut(23)= y
+	       hms_hut(24)= xb_recon
+	       hms_hut(25)= q2_vertex
+	       hms_hut(26)= w_vertex
+	       hms_hut(27)= eprime_recon
+	       hms_hut(28)= theta_recon
+	       hms_hut(29)= xsecv
+	       hms_hut(30)= xsecr
+	       hms_hut(31)= wfac
 	       do ivar=1,NtupleSize
 		  write(NtupleIO) hms_hut(ivar)
 	       enddo
@@ -916,6 +920,7 @@ C for spectrometer ntuples
 
 C We are done with this event, whether GOOD or BAD.
 C Loop for remainder of trials.
+
 
 500	  continue
 c          write(*,*) ' loop = ',itrial
@@ -927,14 +932,8 @@ C------------------------------------------------------------------------------C
 
 C Close NTUPLE file.
 
-	if(ispec.eq.2) then
-	   call hrout(1411,i,' ')
-	   if (spec_ntuple) call hrout(1412,i,' ')
-	   call hrend('HUT')
-	elseif(ispec.eq.1) then
-	   call hrout(1,i,' ')
-	   call hrend('HUT')
-	endif
+	close(NtupleIO)
+	if (spec_ntuple) close(SPecNtupleIO)
 
 	write (chanout,1002)
 	write (chanout,1003) p_spec,th_spec*degrad
@@ -1011,6 +1010,7 @@ C Compute reconstruction resolutions.
      >		t2,dph_var(1)/armSTOP_successes,t3,
      > ztg_var(1)/armSTOP_successes,t4
 	write(chanout,*) 'NORMFAC: ',normfac
+	write(chanout,*) 'Event Type: ',event_type
 	write(6,*) 'NORMFAC: ',normfac
 
 C ALL done!
@@ -1148,8 +1148,8 @@ C =============================== Format Statements ============================
 	real*8 theta_pol   ! 
 	real*8 sig_elastic  ! fm2/sr
 	integer nang
-	parameter (nang=200)
-	real*8 sigma(nang),th_file(nang),frac
+	parameter (nang=201)
+	real*8 ebeam_file(nang), sigma(nang),th_file(nang),frac
 	integer nfile
 	character*132 str_line
 	logical found
@@ -1158,27 +1158,22 @@ C =============================== Format Statements ============================
 	real*8 q,q_eff,sig_mott,ratio,dsigde,dsigdth
 	save
 c       
-	if ( first) then
-	   write(*,*) ' opening file'
-	   nfile=0
-	   open(unit=23,status='old',file='carbon_elastic_xn.out')
-	   str_line='#'
-	   do while (str_line(1:1) .EQ. '#')
-	      read ( 23,'(a132)') str_line
-	      write(*,*) str_line
-	      enddo	   
-	    do while (str_line(1:4).ne.' -100')
-	      nfile=nfile+1
-	      if ( nfile .gt. nang) STOP
-	      read(str_line
-     >,'(1x,f6.3,2(1x,f5.3),2(2x,e11.5),1x,f8.3,1x,f9.3,1x,e13.5)') 
-     >  th_file(nfile),q,q_eff,sig_mott,ratio,dsigde,dsigdth,sigma(nfile)
-	      write(*,'(1x,f6.3,2(1x,f5.3),1x,2(1x,e11.5),1x,2(f9.3,1x),1x,e13.5)') 
-     >  th_file(nfile),q,q_eff,sig_mott,ratio,dsigde,dsigdth,sigma(nfile)
-	      read ( 23,'(a132)',end=100) str_line
-	      enddo
-	      close(unit=23)
-	endif
+      if ( first) then
+         write(*,*) ' opening file'
+         nfile=0
+         open(unit=23,status='old',file='../data_michael/C12table.txt')
+         read(23,*) ! skip header line
+         do
+            read(23,*,end=100) ebeam_file(nfile+1),
+     >                         th_file(nfile+1),sigma(nfile+1)
+            nfile=nfile+1
+						sigma(nfile) = sigma(nfile) * 0.1d0 ! unit conversion mb -> fm2
+            if (nfile .gt. nang) STOP
+            write(*,'(1x,f10.4,1x,f8.4,1x,e13.5)')
+     >         ebeam_file(nfile),th_file(nfile),sigma(nfile)
+         enddo
+         close(unit=23)
+      endif
 c
  100	nang_test=1
 	first=.false.
@@ -1196,7 +1191,7 @@ c
 	return
 	end
 c
-	subroutine calc_elastic_excited_sig(theta_pol,sig)
+	subroutine calc_first_elastic_excited_sig(theta_pol,sig)
 	implicit none
 	real*8 theta_pol   ! 
 	real*8 sig  ! fm2/sr
@@ -1214,9 +1209,11 @@ c
 	if ( first) then
 	   write(*,*) ' opening file'
 	   nfile=0
-	   open(unit=23,status='old',file='c12calc_2200ex_2.out')
+	   open(unit=23,status='old',file='../data_michael/C12_1st_ExcitedState_table.dat')
+		 read(23,*) ! skip header line
               do while (nfile .le. nang)
 	      nfile=nfile+1
+				sigma(nfile) = sigma(nfile) * 0.1d0 ! unit conversion mb -> fm2
 	      read(23,'(f8.5,g15.5)',end=100)  th_file(nfile),sigma(nfile)
 	      write(25,*) th_file(nfile),sigma(nfile)
 	      enddo
@@ -1242,6 +1239,107 @@ c
 c	write(*,*) theta_pol,sig
 	return
 	end
+
+
+	subroutine calc_second_elastic_excited_sig(theta_pol,sig)
+	implicit none
+	real*8 theta_pol   ! 
+	real*8 sig  ! fm2/sr
+	integer nang
+	parameter (nang=200)
+	real*8 sigma(nang),th_file(nang),frac
+	integer nfile
+	character*132 str_line
+	logical found
+	logical first /.true./
+	integer nang_test
+	real*8 q,q_eff,sig_mott,ratio,dsigde,dsigdth
+	save
+c       
+	if ( first) then
+	   write(*,*) ' opening file'
+	   nfile=0
+	   open(unit=23,status='old',file='../data_michael/C12_2nd_ExcitedState_table.dat')
+		 read(23,*) ! skip header line
+              do while (nfile .le. nang)
+	      nfile=nfile+1
+				sigma(nfile) = sigma(nfile) * 0.1d0 ! unit conversion mb -> fm2
+	      read(23,'(f8.5,g15.5)',end=100)  th_file(nfile),sigma(nfile)
+	      write(25,*) th_file(nfile),sigma(nfile)
+	      enddo
+	endif
+c
+ 100	nang_test=1
+        if (first) write(*,*) nfile-1,th_file(1),th_file(nfile-1)
+	first=.false.
+	found = .false.
+	sig=0.
+        if ( theta_pol .ge. th_file(1)    
+     +      .and. theta_pol .le. th_file(nfile-1) ) then
+	do while (nang_test .lt. nfile-1 .and. .not. found)
+	      frac= (theta_pol-th_file(nang_test))/(th_file(nang_test+1)-th_file(nang_test))
+	   if (abs(frac) .lt. 1) then
+	      sig=sigma(nang_test)+(sigma(nang_test+1)-sigma(nang_test))*frac
+	      found = .true.
+	      endif
+	   nang_test = nang_test+ 1
+	enddo
+	endif
+c
+c	write(*,*) theta_pol,sig
+	return
+	end
+
+
+	subroutine calc_third_elastic_excited_sig(theta_pol,sig)
+	implicit none
+	real*8 theta_pol   ! 
+	real*8 sig  ! fm2/sr
+	integer nang
+	parameter (nang=200)
+	real*8 sigma(nang),th_file(nang),frac
+	integer nfile
+	character*132 str_line
+	logical found
+	logical first /.true./
+	integer nang_test
+	real*8 q,q_eff,sig_mott,ratio,dsigde,dsigdth
+	save
+c       
+	if ( first) then
+	   write(*,*) ' opening file'
+	   nfile=0
+	   open(unit=23,status='old',file='../data_michael/C12_3rd_ExcitedState_table.dat')
+		 read(23,*) ! skip header line
+              do while (nfile .le. nang)
+	      nfile=nfile+1
+				sigma(nfile) = sigma(nfile) * 0.1d0 ! unit conversion mb -> fm2
+	      read(23,'(f8.5,g15.5)',end=100)  th_file(nfile),sigma(nfile)
+	      write(25,*) th_file(nfile),sigma(nfile)
+	      enddo
+	endif
+c
+ 100	nang_test=1
+        if (first) write(*,*) nfile-1,th_file(1),th_file(nfile-1)
+	first=.false.
+	found = .false.
+	sig=0.
+        if ( theta_pol .ge. th_file(1)    
+     +      .and. theta_pol .le. th_file(nfile-1) ) then
+	do while (nang_test .lt. nfile-1 .and. .not. found)
+	      frac= (theta_pol-th_file(nang_test))/(th_file(nang_test+1)-th_file(nang_test))
+	   if (abs(frac) .lt. 1) then
+	      sig=sigma(nang_test)+(sigma(nang_test+1)-sigma(nang_test))*frac
+	      found = .true.
+	      endif
+	   nang_test = nang_test+ 1
+	enddo
+	endif
+c
+c	write(*,*) theta_pol,sig
+	return
+	end
+
 c
 c
 c
