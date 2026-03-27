@@ -100,9 +100,9 @@ C Local  spectrometer varibales
 	real*8 dxdz_s,dydz_s,dpp_s
 
 c carbon cross section
-	integer doing_carbon /3/
+	integer doing_carbon /2/
 	integer doing_hyd /0/
-	real*8 mass_tar,theta_pol,eprime,e_ex
+	real*8 mass_tar,theta_pol,eprime,e_ex,theta_ref
         real*8 ebeam ! MeV
         real*8 car_density /1.7/ ! g/cm3
 	REAL*8 q2_vertex,W_vertex, xb_recon, xb_vert
@@ -564,7 +564,7 @@ c If doing carbon elastics and quasielastics
 !          endif
 	  if (doing_carbon .ge. 1) then
 	    mass_tar = 12.*931.5
-            cur=5. ! microAmps
+            cur=1. ! microAmps
 	    thick=car_density*gen_lim(6)  ! g/cm2
 c            thick=0.1749
             thick=0.044*3 ! g/cm2 multifoil targets (three foils)
@@ -579,20 +579,32 @@ c            thick=0.1749
      +                        / sqrt( 1. + dxdz**2 + dydz**2 ) )
 	    thrown_wt = 1.
 	    if(doing_carbon .eq. 2) then
-	     thrown_wt = 2.
+	     thrown_wt = 4.
               rnum=grnd()
-	      if (rnum .le. 0.5) then ! elastic carbon scattering
+	      if (rnum .le. 0.25) then ! elastic carbon scattering
               e_ex=0.
  	      eprime = mass_tar*ebeam-e_ex*(ebeam+mass_tar)+e_ex*e_ex/2
               eprime = eprime/(ebeam*(1-cos(theta_pol))+mass_tar-e_ex)
 	      dpp = (eprime-p_spec)/p_spec*100.
 	      event_type=1. 
-	       elseif (rnum .gt. 0.5) then ! 4.4elastic carbon scattering
-               e_ex=4.4
+	       elseif (rnum .le. 0.5) then ! 4.4elastic carbon scattering
+               e_ex=4.439
  	      eprime = mass_tar*ebeam-e_ex*(ebeam+mass_tar)+e_ex*e_ex/2
               eprime = eprime/(ebeam*(1-cos(theta_pol))+mass_tar-e_ex)
 	      dpp = (eprime-p_spec)/p_spec*100.
 	      event_type=2. 
+	      elseif (rnum .le. 0.75) then ! second (Hoyle)elastic carbon scattering
+               e_ex=7.654
+ 	      eprime = mass_tar*ebeam-e_ex*(ebeam+mass_tar)+e_ex*e_ex/2
+              eprime = eprime/(ebeam*(1-cos(theta_pol))+mass_tar-e_ex)
+	      dpp = (eprime-p_spec)/p_spec*100.
+	      event_type=4. 
+	      elseif (rnum .gt. 0.75) then ! third elastic carbon scattering
+               e_ex=9.641
+ 	      eprime = mass_tar*ebeam-e_ex*(ebeam+mass_tar)+e_ex*e_ex/2
+              eprime = eprime/(ebeam*(1-cos(theta_pol))+mass_tar-e_ex)
+	      dpp = (eprime-p_spec)/p_spec*100.
+	      event_type=5. 
  	      endif
             else if (doing_carbon .eq. 3) then ! inelastics
 	      event_type=3.  
@@ -784,8 +796,30 @@ c                 write(*,*) " wfac = ", wfac, sig_elastic,thrown_wt,domega
                 theta_recon = acos( (cos_ts + dydz_s*sin_ts)
      +                        / sqrt( 1. + dxdz_s**2 + dydz_s**2 ) )
 	        eprime_recon= p_spec*(1+0.01*dpp_s)
-	       eprime_calc=  mass_tar*ebeam/(ebeam*(1-cos(theta_recon))+mass_tar) + 4.4
+	       eprime_calc= mass_tar*ebeam/(ebeam*(1-cos(theta_recon))+mass_tar) + 4.439
 	       call calc_first_elastic_excited_sig(theta_pol*180./3.14159,sig_elastic)
+	       normfac=thrown_wt*sig_elastic*lumin*domega/n_trials
+	         wfac=sig_elastic*thrown_wt*domega/n_trials
+					 xsecr = sig_elastic
+					 xsecv = sig_elastic
+	    endif
+	    if (event_type .eq. 4) then
+                theta_recon = acos( (cos_ts + dydz_s*sin_ts)
+     +                        / sqrt( 1. + dxdz_s**2 + dydz_s**2 ) )
+	        eprime_recon= p_spec*(1+0.01*dpp_s)
+	       eprime_calc= mass_tar*ebeam/(ebeam*(1-cos(theta_recon))+mass_tar) + 7.654
+	       call calc_second_elastic_excited_sig(theta_pol*180./3.14159,sig_elastic)
+	       normfac=thrown_wt*sig_elastic*lumin*domega/n_trials
+	         wfac=sig_elastic*thrown_wt*domega/n_trials
+					 xsecr = sig_elastic
+					 xsecv = sig_elastic
+	    endif
+	    if (event_type .eq. 5) then
+                theta_recon = acos( (cos_ts + dydz_s*sin_ts)
+     +                        / sqrt( 1. + dxdz_s**2 + dydz_s**2 ) )
+	        eprime_recon= p_spec*(1+0.01*dpp_s)
+	       eprime_calc= mass_tar*ebeam/(ebeam*(1-cos(theta_recon))+mass_tar) + 9.641
+	       call calc_third_elastic_excited_sig(theta_pol*180./3.14159,sig_elastic)
 	       normfac=thrown_wt*sig_elastic*lumin*domega/n_trials
 	         wfac=sig_elastic*thrown_wt*domega/n_trials
 					 xsecr = sig_elastic
@@ -798,15 +832,16 @@ c               eprime = 4100.
 c 	      Q2_vertex= 4.0*ebeam*eprime*sin(theta_pol/2)**2
 c              W_vertex= sqrt(2.*938.27*(ebeam-eprime) + (938.27)**2 - Q2_vertex)
               
-	      call calc_inelastic_sig(theta_pol,ebeam-eprime,Q2_vertex,W_vertex,sig_inelastic)
+!	      call calc_inelastic_sig(theta_pol,ebeam-eprime,Q2_vertex,W_vertex,sig_inelastic)
 !                 hbarcsq=0.389379292d0 ! GeV2*mb
 !                 sig_mott = alpha**2 / (Q2_vertex/1.d6) / tan(theta_pol/2.0d0)**2 * eprime/ebeam
 !                 sig_mott = sig_mott * hbarcsq * 0.1  !!xsec in fm2 = 10mb
-		 sig_inelastic = sig_mott*sig_inelastic !! sig_inelastic is /MeV/str/nuc
+!		 sig_inelastic = sig_mott*sig_inelastic !! sig_inelastic is /MeV/str/nuc
 c                 write(*,*) " xn in fm2/MeV " , sig_inelastic
-	         normfac=thrown_wt*sig_inelastic*lumin*domega*denergy/n_trials
-	         wfac=thrown_wt*domega*denergy/n_trials
-                 write (*, *) theta_pol,ebeam-eprime,Q2_vertex,W_vertex,sig_inelastic
+
+		call interpolate_inelastic_sig(eprime, theta_pol*180./3.14159,   sig_inelastic) !fm2/sr/GeV
+					 normfac=thrown_wt*sig_inelastic*lumin*domega*(denergy* 0.001d0)/n_trials
+	         wfac=thrown_wt*domega*(denergy* 0.001d0)/n_trials
 					 xsecr = sig_inelastic
 					 xsecv = sig_inelastic
 c                 write(*,*) "wfac = ",wfac,sig_inelastic
@@ -1236,12 +1271,13 @@ c
 	end
 
 
-	subroutine calc_second_elastic_excited_sig(theta_pol,sig)
+
+	subroutine calc_second_elastic_excited_sig(theta_pol,sig_elastic)
 	implicit none
 	real*8 theta_pol   ! 
-	real*8 sig  ! fm2/sr
+	real*8 sig_elastic  ! fm2/sr
 	integer nang
-	parameter (nang=200)
+	parameter (nang=201)
 	real*8 sigma(nang),th_file(nang),frac
 	integer nfile
 	character*132 str_line
@@ -1251,47 +1287,45 @@ c
 	real*8 q,q_eff,sig_mott,ratio,dsigde,dsigdth
 	save
 c       
-	if ( first) then
-	   write(*,*) ' opening file'
-	   nfile=0
+      if ( first) then
+         write(*,*) ' opening 1st excited grid file'
+         nfile=0
 	   open(unit=23,status='old',file='../data_michael/C12_2nd_ExcitedState_table.dat')
-		 read(23,*) ! skip header line
-              do while (nfile .le. nang)
-	      nfile=nfile+1
-				sigma(nfile) = sigma(nfile) * 0.1d0 ! unit conversion mb -> fm2
-	      read(23,'(f8.5,g15.5)',end=100)  th_file(nfile),sigma(nfile)
-	      write(25,*) th_file(nfile),sigma(nfile)
-	      enddo
-	endif
+         read(23,*) ! skip header line
+         do
+            read(23,*,end=100) th_file(nfile+1),sigma(nfile+1)
+            nfile=nfile+1
+						sigma(nfile) = sigma(nfile) * 0.1d0 ! unit conversion mb -> fm2
+            if (nfile .gt. nang) STOP
+            write(*,'(1x,f8.4,1x,e13.5)')
+     >         th_file(nfile),sigma(nfile)
+         enddo
+         close(unit=23)
+      endif
 c
  100	nang_test=1
-        if (first) write(*,*) nfile-1,th_file(1),th_file(nfile-1)
 	first=.false.
 	found = .false.
-	sig=0.
-        if ( theta_pol .ge. th_file(1)    
-     +      .and. theta_pol .le. th_file(nfile-1) ) then
-	do while (nang_test .lt. nfile-1 .and. .not. found)
+	sig_elastic=-100.
+	do while (nang_test .lt. nfile .and. .not. found)
 	      frac= (theta_pol-th_file(nang_test))/(th_file(nang_test+1)-th_file(nang_test))
 	   if (abs(frac) .lt. 1) then
-	      sig=sigma(nang_test)+(sigma(nang_test+1)-sigma(nang_test))*frac
+	      sig_elastic=sigma(nang_test)+(sigma(nang_test+1)-sigma(nang_test))*frac
 	      found = .true.
 	      endif
 	   nang_test = nang_test+ 1
 	enddo
-	endif
 c
-c	write(*,*) theta_pol,sig
 	return
 	end
 
 
-	subroutine calc_third_elastic_excited_sig(theta_pol,sig)
+	subroutine calc_third_elastic_excited_sig(theta_pol,sig_elastic)
 	implicit none
 	real*8 theta_pol   ! 
-	real*8 sig  ! fm2/sr
+	real*8 sig_elastic  ! fm2/sr
 	integer nang
-	parameter (nang=200)
+	parameter (nang=201)
 	real*8 sigma(nang),th_file(nang),frac
 	integer nfile
 	character*132 str_line
@@ -1301,37 +1335,35 @@ c	write(*,*) theta_pol,sig
 	real*8 q,q_eff,sig_mott,ratio,dsigde,dsigdth
 	save
 c       
-	if ( first) then
-	   write(*,*) ' opening file'
-	   nfile=0
+      if ( first) then
+         write(*,*) ' opening 1st excited grid file'
+         nfile=0
 	   open(unit=23,status='old',file='../data_michael/C12_3rd_ExcitedState_table.dat')
-		 read(23,*) ! skip header line
-              do while (nfile .le. nang)
-	      nfile=nfile+1
-				sigma(nfile) = sigma(nfile) * 0.1d0 ! unit conversion mb -> fm2
-	      read(23,'(f8.5,g15.5)',end=100)  th_file(nfile),sigma(nfile)
-	      write(25,*) th_file(nfile),sigma(nfile)
-	      enddo
-	endif
+         read(23,*) ! skip header line
+         do
+            read(23,*,end=100) th_file(nfile+1),sigma(nfile+1)
+            nfile=nfile+1
+						sigma(nfile) = sigma(nfile) * 0.1d0 ! unit conversion mb -> fm2
+            if (nfile .gt. nang) STOP
+            write(*,'(1x,f8.4,1x,e13.5)')
+     >         th_file(nfile),sigma(nfile)
+         enddo
+         close(unit=23)
+      endif
 c
  100	nang_test=1
-        if (first) write(*,*) nfile-1,th_file(1),th_file(nfile-1)
 	first=.false.
 	found = .false.
-	sig=0.
-        if ( theta_pol .ge. th_file(1)    
-     +      .and. theta_pol .le. th_file(nfile-1) ) then
-	do while (nang_test .lt. nfile-1 .and. .not. found)
+	sig_elastic=-100.
+	do while (nang_test .lt. nfile .and. .not. found)
 	      frac= (theta_pol-th_file(nang_test))/(th_file(nang_test+1)-th_file(nang_test))
 	   if (abs(frac) .lt. 1) then
-	      sig=sigma(nang_test)+(sigma(nang_test+1)-sigma(nang_test))*frac
+	      sig_elastic=sigma(nang_test)+(sigma(nang_test+1)-sigma(nang_test))*frac
 	      found = .true.
 	      endif
 	   nang_test = nang_test+ 1
 	enddo
-	endif
 c
-c	write(*,*) theta_pol,sig
 	return
 	end
 
@@ -1368,3 +1400,158 @@ c
         write(*,*) Z, A, qsq/1.d6, wsq/1.d6,siginel,sigma_qe
 	return
 	end
+
+	subroutine interpolate_inelastic_sig(eprime, theta_pol, sig_inelastic)
+        implicit none
+        real*8 eprime        ! GeV (or MeV, match your file)
+        real*8 theta_pol    ! deg
+        real*8 sig_inelastic  ! fm2/sr
+
+        integer nang_max, ne_max
+        parameter (nang_max=201, ne_max=201)
+
+        real*8 eprime_grid(ne_max), th_grid(nang_max)
+        real*8 sigma_2d(ne_max, nang_max)
+        integer ne, nth
+
+        logical first /.true./
+        integer nfile
+        character*132 str_line
+        logical   found_e, found_t
+
+        real*8 eprime_tmp, th_tmp, sig_tmp
+        real*8 frac_e, frac_t
+        real*8 s11, s12, s21, s22
+        integer ie, it, ie1, ie2, it1, it2
+        integer i, j
+
+        save
+
+c -------------------------------------------------------------------
+c  On first call: read the table and build unique eprime / theta grids
+c -------------------------------------------------------------------
+        if (first) then
+           first = .false.
+           write(*,*) ' opening 2D elastic cross-section table'
+
+           ne   = 0
+           nth  = 0
+           nfile= 0
+
+           open(unit=23, status='old', file='../data_michael/C12quasi.txt')
+           read(23,*) ! skip header
+
+           do
+              read(23,*,end=100) eprime_tmp, th_tmp, sig_tmp
+              nfile = nfile + 1
+              if (nfile .gt. ne_max*nang_max) then
+                 write(*,*) 'ERROR: table exceeds array bounds'
+                 STOP
+              endif
+
+              ! ---- register new eprime value if not yet seen --------
+              found_e = .false.
+              do i = 1, ne
+                 if (abs(eprime_grid(i) - eprime_tmp) .lt. 1.d-9) then
+                    ie = i
+                    found_e = .true.
+                    exit
+                 endif
+              enddo
+              if (.not. found_e) then
+                 ne = ne + 1
+                 if (ne .gt. ne_max) then
+                    write(*,*) 'ERROR: ne_max exceeded'
+                    STOP
+                 endif
+                 eprime_grid(ne) = eprime_tmp
+                 ie = ne
+              endif
+
+              ! ---- register new theta value if not yet seen --------
+              found_t = .false.
+              do j = 1, nth
+                 if (abs(th_grid(j) - th_tmp) .lt. 1.d-9) then
+                    it = j
+                    found_t = .true.
+                    exit
+                 endif
+              enddo
+              if (.not. found_t) then
+                 nth = nth + 1
+                 if (nth .gt. nang_max) then
+                    write(*,*) 'ERROR: nang_max exceeded'
+                    STOP
+                 endif
+                 th_grid(nth) = th_tmp
+                 it = nth
+              endif
+
+              sig_tmp = sig_tmp * 0.001d0 * 0.001d0 * 0.1d0   ! unit conversion nb -> mb -> fm2
+              sigma_2d(ie, it) = sig_tmp
+
+    !           write(*,'(1x,f10.4,1x,f8.4,1x,e13.5)')
+    !  >           eprime_tmp, th_tmp, sig_tmp
+           enddo
+
+ 100       close(unit=23)
+           write(*,'(a,i4,a,i4,a)')
+     >        '  Read ',ne,' eprime points x ',nth,' theta points'
+        endif   ! end of first-call block
+
+c -------------------------------------------------------------------
+c  Bilinear interpolation in (eprime, theta)
+c -------------------------------------------------------------------
+
+        ! --- locate eprime bracket ---
+        if (eprime .le. eprime_grid(1)) then
+           ie1 = 1; ie2 = 2
+           frac_e = 0.d0
+        elseif (eprime .ge. eprime_grid(ne)) then
+           ie1 = ne-1; ie2 = ne
+           frac_e = 1.d0
+        else
+           do i = 1, ne-1
+              if (eprime_grid(i) .le. eprime .and. eprime .lt. eprime_grid(i+1)) then
+                 ie1 = i; ie2 = i+1
+                 frac_e = (eprime - eprime_grid(i)) / (eprime_grid(i+1) - eprime_grid(i))
+                 exit
+              endif
+           enddo
+        endif
+
+        ! --- locate theta bracket ---
+        if (theta_pol .le. th_grid(1)) then
+           it1 = 1; it2 = 2
+           frac_t = 0.d0
+        elseif (theta_pol .ge. th_grid(nth)) then
+           it1 = nth-1; it2 = nth
+           frac_t = 1.d0
+        else
+           do j = 1, nth-1
+              if (th_grid(j) .le. theta_pol .and. theta_pol .lt. th_grid(j+1)) then
+                 it1 = j; it2 = j+1
+                 frac_t = (theta_pol - th_grid(j)) / (th_grid(j+1) - th_grid(j))
+                 exit
+              endif
+           enddo
+        endif
+
+        ! --- bilinear combination ---
+        !
+        !   (ie1,it2) ------ (ie2,it2)
+        !       |                 |
+        !       |    * (eprime,    |
+        !       |       theta)    |
+        !   (ie1,it1) ------ (ie2,it1)
+        !
+        s11 = sigma_2d(ie1, it1)
+        s21 = sigma_2d(ie2, it1)
+        s12 = sigma_2d(ie1, it2)
+        s22 = sigma_2d(ie2, it2)
+
+        sig_inelastic = (1.d0-frac_e)*(1.d0-frac_t)*s11 + frac_e *(1.d0-frac_t)*s21
+     >         + (1.d0-frac_e)* frac_t *s12  + frac_e *frac_t*s22
+
+        return
+        end
