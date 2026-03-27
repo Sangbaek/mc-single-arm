@@ -16,11 +16,11 @@ C-______________________________________________________________________________
 	include 'hbook.inc'
 
 c Vector (real*4) for hut ntuples - needs to match dimension of variables
-	real*8		shms_hut(32)
+	real*8		shms_hut(33)
 	real*4		hrsl_hut(9)
 	real*4          shms_spec(58)
 
-	real*8          hms_hut(31)
+	real*8          hms_hut(32)
 c
 	real*8 xwedge,ywedge,zwedge
 	common /wedge_info/ xwedge,ywedge,zwedge
@@ -864,13 +864,14 @@ C for spectrometer ntuples
 	       shms_hut(23)= y
 	       shms_hut(24)= xb_vert
 	       shms_hut(25)= xb_recon
-	       shms_hut(26)= q2_vertex
-	       shms_hut(27)= w_vertex
-	       shms_hut(28)= eprime_recon
-	       shms_hut(29)= theta_recon
+	       shms_hut(26)= Q2_vertex/1000./1000.
+	       shms_hut(27)= W_vertex/1000.
+	       shms_hut(28)= eprime
+	       shms_hut(29)= theta_pol
 	       shms_hut(30)= xsecv
-	       shms_hut(31)= xsecr
-	       shms_hut(32)= wfac
+	       shms_hut(31)= wfac
+	       shms_hut(32)= normfac
+				 shms_hut(33)= event_type
 	       do ivar=1,NtupleSize
 		  write(NtupleIO) shms_hut(ivar)
 	       enddo
@@ -905,13 +906,14 @@ C for spectrometer ntuples
 	       hms_hut(22)= x
 	       hms_hut(23)= y
 	       hms_hut(24)= xb_recon
-	       hms_hut(25)= q2_vertex
-	       hms_hut(26)= w_vertex
-	       hms_hut(27)= eprime_recon
-	       hms_hut(28)= theta_recon
+	       hms_hut(25)= Q2_vertex/1000./1000.
+	       hms_hut(26)= W_vertex/1000.
+	       hms_hut(27)= eprime
+	       hms_hut(28)= theta_pol
 	       hms_hut(29)= xsecv
-	       hms_hut(30)= xsecr
-	       hms_hut(31)= wfac
+	       hms_hut(30)= wfac
+	       hms_hut(31)= normfac
+				 hms_hut(32)= event_type
 	       do ivar=1,NtupleSize
 		  write(NtupleIO) hms_hut(ivar)
 	       enddo
@@ -1009,9 +1011,6 @@ C Compute reconstruction resolutions.
      > dth_var(1)/armSTOP_successes,
      >		t2,dph_var(1)/armSTOP_successes,t3,
      > ztg_var(1)/armSTOP_successes,t4
-	write(chanout,*) 'NORMFAC: ',normfac
-	write(chanout,*) 'Event Type: ',event_type
-	write(6,*) 'NORMFAC: ',normfac
 
 C ALL done!
 

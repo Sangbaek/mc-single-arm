@@ -11,7 +11,7 @@ SHARE	  = shared/
 CH	= cern/
 
 my_objs = hms_hbook_init.o shms_hbook_init.o \
-          target_cans.o xsec_model.o get_physics.o F1F221.o \
+          target_cans.o xsec_model.o get_physics.o \
           $(H)mc_hms.o $(H)mc_hms_hut.o $(H)mc_hms_recon.o \
           $(SH)mc_shms.o $(SH)mc_shms_hut.o $(SH)mc_shms_recon.o \
 	  $(SHARE)project.o $(SHARE)transp.o $(SHARE)rotate_haxis.o \
@@ -158,8 +158,18 @@ CERN_ROOT_temp=/cvmfs/oasis.opensciencegrid.org/jlab/scicomp/sw/el9/cernlib/2023
 
 OTHERLIBS_temp = -L$(CERN_ROOT_temp)/lib $(CERNLIBS_temp) -L/usr/lib64 
 
-mc_single_arm_temp: $(my_objs) Makefile mc_single_arm_temp.o
-	$(F77) -o $@ $(FFLAGS) mc_single_arm_temp.o $(my_objs) $(OTHERLIBS_temp)
+my_objs_temp = hms_hbook_init_temp.o shms_hbook_init_temp.o \
+          target_cans.o xsec_model.o get_physics.o F1F221.o \
+          $(H)mc_hms.o $(H)mc_hms_hut.o $(H)mc_hms_recon.o \
+          $(SH)mc_shms.o $(SH)mc_shms_hut.o $(SH)mc_shms_recon.o \
+	  $(SHARE)project.o $(SHARE)transp.o $(SHARE)rotate_haxis.o \
+	  $(SHARE)rotate_vaxis.o $(SHARE)locforunt.o $(SHARE)musc.o \
+          $(SHARE)musc_ext.o $(SHARE)stringlib.o mt19937.o gauss1.o \
+	  $(CH)lfit.o $(CH)ranlux.o $(CH)fint.o $(CH)kerset.o $(CH)abend.o \
+          loren.o
+
+mc_single_arm_temp: $(my_objs_temp) Makefile mc_single_arm_temp.o
+	$(F77) -o $@ $(FFLAGS) mc_single_arm_temp.o $(my_objs_temp) $(OTHERLIBS_temp)
 clean:
 	rm -f *.o $(H)*.o $(SH)*.o $(SHARE)*.o $(CH)*.o mc_single_arm
 
