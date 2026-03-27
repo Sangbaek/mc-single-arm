@@ -32,7 +32,7 @@
       integer*4 hSTOP_VP1,hSTOP_VP2,hSTOP_VP3,hSTOP_VP4
       integer*4 hSTOP_hut,hSTOP_dc1,hSTOP_dc2
       integer*4 hSTOP_scin,hSTOP_cal,hSTOP_successes
-      integer*4 hSTOP_id
+      integer*4 hSTOP_id, hSTOP_slit_hor, hSTOP_slit_oct, hSTOP_slit_vert
 
       common/spectrometer_hms/  hSTOP_trials,
      >    hSTOP_fAper_hor,hSTOP_fAper_vert,hSTOP_fAper_oct,
@@ -45,4 +45,4 @@
      >    hSTOP_VP1,hSTOP_VP2,hSTOP_VP3,hSTOP_VP4,
      >    hSTOP_hut,hSTOP_dc1,hSTOP_dc2,
      >    hSTOP_scin,hSTOP_cal,hSTOP_successes,
-     >    hSTOP_id
+     >    hSTOP_id, hSTOP_slit_hor, hSTOP_slit_oct, hSTOP_slit_vert

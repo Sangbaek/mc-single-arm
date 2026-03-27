@@ -22,7 +22,7 @@
       integer*4 shmsSTOP_hut,shmsSTOP_dc1,shmsSTOP_dc2
       integer*4 shmsSTOP_cer1,shmsSTOP_cer2
       integer*4 shmsSTOP_s1,shmsSTOP_s2,shmsSTOP_s3,shmsSTOP_cal
-      integer*4 shmsSTOP_id
+      integer*4 shmsSTOP_id, shmsSTOP_slit_vert, shmsSTOP_slit_hor, shmsSTOP_slit_oct
 
       common/spectrometer_shms/ shmsSTOP_trials,shmsSTOP_successes,
      >    shmsSTOP_targ_hor,shmsSTOP_targ_vert,shmsSTOP_targ_oct,
@@ -44,5 +44,5 @@
      >    shmsSTOP_hut,shmsSTOP_dc1,shmsSTOP_dc2,
      >    shmsSTOP_cer1,shmsSTOP_cer2,
      >    shmsSTOP_s1,shmsSTOP_s2,shmsSTOP_s3,shmsSTOP_cal,
-     >    shmsSTOP_id
+     >    shmsSTOP_id, shmsSTOP_slit_vert, shmsSTOP_slit_hor, shmsSTOP_slit_oct
 
